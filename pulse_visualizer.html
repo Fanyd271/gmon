@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>eq_S26 控制脉冲波形可视化</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+    font-family: 'Segoe UI', Arial, sans-serif;
+    background: #111827;
+    color: #d1d5db;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 24px 16px;
+    gap: 16px;
+}
+h1 {
+    font-size: 1.3em;
+    color: #60a5fa;
+    letter-spacing: 0.03em;
+}
+.formula-box {
+    font-family: 'Courier New', monospace;
+    background: #1e3a5f;
+    border: 1px solid #2563eb55;
+    border-radius: 10px;
+    padding: 10px 24px;
+    font-size: 0.93em;
+    color: #93c5fd;
+    text-align: center;
+    line-height: 1.8;
+}
+.formula-box .sub {
+    color: #6b7280;
+    font-size: 0.82em;
+}
+.main {
+    display: flex;
+    gap: 20px;
+    width: 100%;
+    max-width: 1120px;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+.canvas-wrap {
+    flex: 1;
+    min-width: 460px;
+    background: #0d1117;
+    border: 1px solid #21262d;
+    border-radius: 12px;
+    overflow: hidden;
+}
+canvas { display: block; width: 100%; height: auto; }
+
+.controls {
+    background: #1f2937;
+    border: 1px solid #374151;
+    border-radius: 12px;
+    padding: 20px;
+    min-width: 270px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+}
+.ctrl-title {
+    font-size: 0.8em;
+    color: #6b7280;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    border-bottom: 1px solid #374151;
+    padding-bottom: 8px;
+    margin-bottom: 2px;
+}
+.ctrl-group { display: flex; flex-direction: column; gap: 4px; }
+.ctrl-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+}
+.ctrl-name {
+    font-family: 'Courier New', monospace;
+    font-size: 0.97em;
+    color: #60a5fa;
+    font-weight: bold;
+}
+.ctrl-val {
+    font-family: 'Courier New', monospace;
+    font-size: 1em;
+    color: #fbbf24;
+    min-width: 48px;
+    text-align: right;
+}
+.ctrl-desc { font-size: 0.78em; color: #6b7280; }
+input[type=range] {
+    width: 100%;
+    height: 5px;
+    accent-color: #3b82f6;
+    cursor: pointer;
+    margin-top: 2px;
+}
+.ctrl-limits {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.7em;
+    color: #4b5563;
+}
+.legend {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+    justify-content: center;
+    font-size: 0.8em;
+}
+.leg-item { display: flex; align-items: center; gap: 6px; }
+.leg-swatch { width: 24px; height: 3px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<h1>eq_S26 — 控制脉冲波形可视化</h1>
+
+<div class="formula-box">
+    pulse(t) &nbsp;=&nbsp; (amp/2) &times;
+    [ ( erf((t&minus;t_s)/&sigma;_r) <span style="color:#86efac">+ erf(t_s/&sigma;_r)</span> )
+    &minus; ( erf((t&minus;t_e)/&sigma;_f) <span style="color:#86efac">+ erf(t_e/&sigma;_f)</span> ) ]
+    <br><span class="sub">t_e = t_s + width &nbsp;|&nbsp; 绿色修正项保证 pulse(0)=0 且 pulse(∞)→0</span>
+</div>
+
+<div class="main">
+    <div class="canvas-wrap">
+        <canvas id="cv" width="760" height="440"></canvas>
+    </div>
+
+    <div class="controls">
+        <div class="ctrl-title">参数控制</div>
+
+        <div class="ctrl-group">
+            <div class="ctrl-header">
+                <span class="ctrl-name">amp</span>
+                <span class="ctrl-val" id="v_amp">1.00</span>
+            </div>
+            <div class="ctrl-desc">脉冲幅度（正向↑ / 负向↓）</div>
+            <input type="range" id="s_amp" min="-2.0" max="2.0" step="0.01" value="1.0">
+            <div class="ctrl-limits"><span>-2.00</span><span>+2.00</span></div>
+        </div>
+
+        <div class="ctrl-group">
+            <div class="ctrl-header">
+                <span class="ctrl-name">&sigma;_rise (ns)</span>
+                <span class="ctrl-val" id="v_sr">2.00</span>
+            </div>
+            <div class="ctrl-desc">上升沿 Gaussian 宽度</div>
+            <input type="range" id="s_sr" min="0.1" max="15.0" step="0.1" value="2.0">
+            <div class="ctrl-limits"><span>0.1</span><span>15.0</span></div>
+        </div>
+
+        <div class="ctrl-group">
+            <div class="ctrl-header">
+                <span class="ctrl-name">&sigma;_fall (ns)</span>
+                <span class="ctrl-val" id="v_sf">2.00</span>
+            </div>
+            <div class="ctrl-desc">下降沿 Gaussian 宽度</div>
+            <input type="range" id="s_sf" min="0.1" max="15.0" step="0.1" value="2.0">
+            <div class="ctrl-limits"><span>0.1</span><span>15.0</span></div>
+        </div>
+
+        <div class="ctrl-group">
+            <div class="ctrl-header">
+                <span class="ctrl-name">t_start (ns)</span>
+                <span class="ctrl-val" id="v_ts">10.00</span>
+            </div>
+            <div class="ctrl-desc">脉冲上升沿中心时刻</div>
+            <input type="range" id="s_ts" min="0" max="50" step="0.5" value="10">
+            <div class="ctrl-limits"><span>0</span><span>50</span></div>
+        </div>
+
+        <div class="ctrl-group">
+            <div class="ctrl-header">
+                <span class="ctrl-name">width (ns)</span>
+                <span class="ctrl-val" id="v_w">50.00</span>
+            </div>
+            <div class="ctrl-desc">脉冲平顶持续时间</div>
+            <input type="range" id="s_w" min="1" max="150" step="1" value="50">
+            <div class="ctrl-limits"><span>1</span><span>150</span></div>
+        </div>
+    </div>
+</div>
+
+<div class="legend">
+    <div class="leg-item"><div class="leg-swatch" style="background:#38bdf8"></div><span>pulse(t)</span></div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#f59e0b;border-top:2px dashed #f59e0b;height:0"></div><span>t_start</span></div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#f87171;border-top:2px dashed #f87171;height:0"></div><span>t_end</span></div>
+    <div class="leg-item"><div class="leg-swatch" style="background:#34d399;border-top:2px dashed #34d39966;height:0"></div><span>amp</span></div>
+</div>
+
+<script>
+// ── Abramowitz & Stegun erf 近似, 误差 < 1.5e-7 ──
+function erf(x) {
+    const s = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    const t = 1 / (1 + 0.3275911 * x);
+    const y = 1 - (((((1.061405429*t - 1.453152027)*t + 1.421413741)*t
+                - 0.284496736)*t + 0.254829592)*t) * Math.exp(-x*x);
+    return s * y;
+}
+
+function pulse(t, amp, sr, sf, ts, w) {
+    const te = ts + w;
+    // 解析零点修正：减去 t=0 处基底，保证首尾归零
+    return (amp / 2) * (
+        (erf((t - ts) / sr) + erf(ts / sr)) -
+        (erf((t - te) / sf) + erf(te / sf))
+    );
+}
+
+const cv  = document.getElementById('cv');
+const ctx = cv.getContext('2d');
+const PAD = { l:62, r:24, t:36, b:52 };
+
+function getP() {
+    return {
+        amp: +document.getElementById('s_amp').value,
+        sr:  +document.getElementById('s_sr').value,
+        sf:  +document.getElementById('s_sf').value,
+        ts:  +document.getElementById('s_ts').value,
+        w:   +document.getElementById('s_w').value,
+    };
+}
+
+function draw() {
+    const p = getP();
+    const W = cv.width, H = cv.height;
+    const pw = W - PAD.l - PAD.r;
+    const ph = H - PAD.t - PAD.b;
+
+    const T0 = 0, T1 = Math.max(p.ts + p.w + 40, 140);
+    const N  = 1000;
+    const ts = [], ys = [];
+    for (let i = 0; i <= N; i++) {
+        const t = T0 + (T1 - T0) * i / N;
+        ts.push(t);
+        ys.push(pulse(t, p.amp, p.sr, p.sf, p.ts, p.w));
+    }
+
+    // 零点锁定在图中央：y 轴关于 0 对称，范围仅由 |amp| 决定
+    const yRange = Math.max(Math.abs(p.amp) * 1.3, 0.15);
+    const yMax =  yRange;
+    const yMin = -yRange;
+    const ySpan = 2 * yRange;
+
+    const mx = t => PAD.l + (t - T0) / (T1 - T0) * pw;
+    const my = y => PAD.t + (1 - (y - yMin) / ySpan) * ph;
+
+    // ── 清空 ──
+    ctx.clearRect(0, 0, W, H);
+
+    // ── 网格 ──
+    const NX = 8, NY = 6;
+    ctx.strokeStyle = '#1e293b';
+    ctx.lineWidth = 1;
+    for (let i = 0; i <= NX; i++) {
+        const x = PAD.l + i/NX * pw;
+        ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t+ph); ctx.stroke();
+    }
+    for (let j = 0; j <= NY; j++) {
+        const y = PAD.t + j/NY * ph;
+        ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l+pw, y); ctx.stroke();
+    }
+
+    // ── 零线 ──
+    const y0 = my(0);
+    ctx.save();
+    ctx.strokeStyle = '#374151';
+    ctx.lineWidth = 1.2;
+    ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(PAD.l+pw, y0); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // ── t_start / t_end 标注 ──
+    const te = p.ts + p.w;
+    function vLine(t, color, label) {
+        if (t < T0 || t > T1) return;
+        const x = mx(t);
+        ctx.save();
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.4;
+        ctx.setLineDash([5, 4]);
+        ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t+ph); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = color;
+        ctx.font = 'bold 11px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(label, x + 4, PAD.t + 16);
+        ctx.restore();
+    }
+    vLine(p.ts, '#f59e0b', 't_start');
+    vLine(te,   '#f87171', 't_end');
+
+    // ── 实际极值水平线（amp > 0 取最大值，amp < 0 取最小值）──
+    {
+        const yExtreme = p.amp >= 0 ? Math.max(...ys) : Math.min(...ys);
+        const ya = my(yExtreme);
+        // 标签位于线的外侧（正向在上方，负向在下方）
+        const labelOffY = p.amp >= 0 ? -6 : 14;
+        ctx.save();
+        ctx.strokeStyle = '#34d39966';
+        ctx.lineWidth = 1.2;
+        ctx.setLineDash([4, 6]);
+        ctx.beginPath(); ctx.moveTo(PAD.l, ya); ctx.lineTo(PAD.l+pw, ya); ctx.stroke();
+        ctx.setLineDash([]);
+        ctx.fillStyle = '#34d399';
+        ctx.font = '11px monospace';
+        ctx.textAlign = 'left';
+        ctx.fillText(`peak = ${yExtreme.toFixed(3)}  (amp = ${p.amp.toFixed(2)})`, PAD.l + 6, ya + labelOffY);
+        ctx.restore();
+    }
+
+    // ── 填充面积（渐变从零线出发，朝极值方向淡出）──
+    const gradEnd = p.amp >= 0 ? PAD.t : PAD.t + ph;
+    const grad = ctx.createLinearGradient(0, y0, 0, gradEnd);
+    grad.addColorStop(0,   'rgba(56,189,248,0.00)');
+    grad.addColorStop(0.3, 'rgba(56,189,248,0.22)');
+    grad.addColorStop(1,   'rgba(56,189,248,0.28)');
+    ctx.beginPath();
+    ctx.moveTo(mx(ts[0]), y0);
+    ts.forEach((t,i) => ctx.lineTo(mx(t), my(ys[i])));
+    ctx.lineTo(mx(ts[ts.length-1]), y0);
+    ctx.closePath();
+    ctx.fillStyle = grad;
+    ctx.fill();
+
+    // ── 主曲线 ──
+    ctx.beginPath();
+    ctx.moveTo(mx(ts[0]), my(ys[0]));
+    ts.forEach((t,i) => ctx.lineTo(mx(t), my(ys[i])));
+    ctx.strokeStyle = '#38bdf8';
+    ctx.lineWidth = 2.5;
+    ctx.lineJoin = 'round';
+    ctx.stroke();
+
+    // ── 坐标轴边框 ──
+    ctx.strokeStyle = '#4b5563';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(PAD.l, PAD.t, pw, ph);
+
+    // ── X 刻度 & 标签 ──
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '11px sans-serif';
+    ctx.textAlign = 'center';
+    for (let i = 0; i <= NX; i++) {
+        const tv = T0 + (T1-T0)*i/NX;
+        const x  = PAD.l + i/NX * pw;
+        ctx.beginPath(); ctx.moveTo(x, PAD.t+ph); ctx.lineTo(x, PAD.t+ph+5); ctx.stroke();
+        ctx.fillText(tv.toFixed(0), x, PAD.t+ph+18);
+    }
+    ctx.fillStyle = '#d1d5db';
+    ctx.font = '13px sans-serif';
+    ctx.fillText('Time (ns)', PAD.l + pw/2, H - 6);
+
+    // ── Y 刻度 & 标签 ──
+    ctx.textAlign = 'right';
+    ctx.fillStyle = '#9ca3af';
+    ctx.font = '11px sans-serif';
+    for (let j = 0; j <= NY; j++) {
+        const yv = yMin + ySpan*(1 - j/NY);
+        const y  = PAD.t + j/NY * ph;
+        ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l-5, y); ctx.stroke();
+        ctx.fillText(yv.toFixed(2), PAD.l - 8, y + 4);
+    }
+    ctx.save();
+    ctx.translate(14, PAD.t + ph/2);
+    ctx.rotate(-Math.PI/2);
+    ctx.fillStyle = '#d1d5db';
+    ctx.font = '13px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('Amplitude', 0, 0);
+    ctx.restore();
+}
+
+// ── 滑块绑定 ──
+const bindings = [
+    ['s_amp', 'v_amp', 2],
+    ['s_sr',  'v_sr',  2],
+    ['s_sf',  'v_sf',  2],
+    ['s_ts',  'v_ts',  2],
+    ['s_w',   'v_w',   2],
+];
+bindings.forEach(([sid, vid, dec]) => {
+    const sl = document.getElementById(sid);
+    const vl = document.getElementById(vid);
+    sl.addEventListener('input', () => {
+        vl.textContent = (+sl.value).toFixed(dec);
+        draw();
+    });
+});
+
+draw();
+</script>
+</body>
+</html>
