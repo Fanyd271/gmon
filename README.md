@@ -65,21 +65,21 @@ gmon 耦合器通过可调外磁通 $\delta_\text{ext}$ 控制超导量子比特
 
 本代码采用的演化方程来源于**非马尔可夫 Purcell 效应**在时域的积分形式（等价于Eq. S20不考虑反射光子的改写版本）。其推导出发点是将量子比特–耦合器系统在 Born–Markov 近似下约化，得到比特激发态振幅 $\sigma_1(t)$ 满足的一阶方程：
 
-$$\dot{\sigma}_1(t) = \left[-i\,\delta\omega(t) - \frac{\Gamma(t)}{2}\right]\sigma_1(t)$$
+$$\dot{\sigma}_1(t) = \left[-i \delta\omega(t) - \frac{\Gamma(t)}{2}\right]\sigma_1(t)$$
 
 其中两个时变系数均由瞬时耦合强度 $g_1(t)$ 给出：
 
 $$\delta\omega(t) = \alpha_\text{shift} \cdot g_1(t) \qquad \text{（AC Stark 频移，Eq. S17）}$$
 
-$$\Gamma(t) = \frac{2\pi\,g_1(t)^2}{\omega_\text{FSR}} \qquad \text{（Purcell 衰减率，Eq. S23）}$$
+$$\Gamma(t) = \frac{2\pi g_1(t)^2}{\omega_\text{FSR}} \qquad \text{（Purcell 衰减率，Eq. S23）}$$
 
-**注：** $\Gamma(t)$ 的这一形式是 Fermi 黄金定则在密集腔模（自由光谱区 $\omega_\text{FSR}$）条件下的结果——比特通过耦合强度 $g_1$ 向腔模辐射，总速率正比于 $g_1^2$ 与态密度 $1/\omega_\text{FSR}$ 的乘积。当控制脉冲将耦合器切换至 ON 态时，$g_1(t)$ 显著增大，$\Gamma(t)$ 随之急剧上升，驱动快速 Purcell 衰减。
+**注：** $\Gamma(t)$ 的这一形式是 Fermi 黄金定则在密集腔模（自由光谱区 $\omega_\text{FSR}$）条件下的结果——比特通过耦合强度 $g_1$ 向腔模辐射，总速率正比于 $g_1^2$ 与态密度 $1/\omega_\text{FSR}$ 的乘积。当控制脉冲将耦合器切换至 ON 态时， $g_1(t)$ 显著增大， $\Gamma(t)$ 随之急剧上升，驱动快速 Purcell 衰减。
 
 对上述一阶线性 ODE 直接积分，得到解析解：
 
-$$\sigma_1(t) = \sigma_1(0)\exp\!\left(-i\int_0^t \delta\omega(t')\,dt' - \frac{1}{2}\int_0^t \Gamma(t')\,dt'\right)$$
+$$\sigma_1(t) = \sigma_1(0)\exp \left(-i\int_0^t \delta\omega(t') dt' - \frac{1}{2}\int_0^t \Gamma(t') dt'\right)$$
 
-取初始条件 $\sigma_1(0) = 1$（比特从 $|1\rangle$ 态出发），末态布居数为 $P_1(T) = |\sigma_1(T)|^2$。代码中用**累积求和（`np.cumsum`）乘以时间步 $\Delta t$** 近似两个积分，精度为 $O(\Delta t)$，在 $\Delta t = 0.1\,\text{ns}$ 下对 ns 量级脉冲已足够准确。
+取初始条件 $\sigma_1(0) = 1$（比特从 $|1\rangle$ 态出发），末态布居数为 $P_1(T) = |\sigma_1(T)|^2$。代码中用**累积求和（`np.cumsum`）乘以时间步 $\Delta t$** 近似两个积分，精度为 $O(\Delta t)$，在 $\Delta t = 0.1 \text{ns}$ 下对 ns 量级脉冲已足够准确。
 
 **与常数 $T_1$ 的关系：** 若 $g_1$ 为常数（方波），则 $\Gamma$ 为常数，$P_1(T) = e^{-\Gamma T}$，对应指数衰减 $T_1 = 1/\Gamma$。对任意脉冲形状，$T_1$ 由 $\ln P_1(T)$ 对 $T$ 的线性拟合斜率提取（见 §2.4）。
 
@@ -103,9 +103,9 @@ g1(t)                           [瞬时耦合强度]
 
 量子比特 $|1\rangle$ 态的相干演化（忽略纯退相干）：
 
-$$\sigma_1(t) = \exp\!\left(-i\int_0^t \delta\omega(t')\,dt' - \frac{1}{2}\int_0^t \Gamma(t')\,dt'\right)$$
+$$\sigma_1(t) = \exp \left(-i\int_0^t \delta\omega(t') dt' - \frac{1}{2}\int_0^t \Gamma(t') dt'\right)$$
 
-末态布居数：$P_1 = |\sigma_1(T_\text{end})|^2$
+末态布居数： $P_1 = |\sigma_1(T_\text{end})|^2$
 
 ### 2.4 T1 提取方法
 
@@ -123,15 +123,15 @@ $T_1$ 越小，表示耦合器 ON 态越强，开关比越高。
 
 理想参数化波形为高斯平滑方波（erf 卷积）：
 
-$$\Phi_\text{ideal}(t) = \frac{A}{2}\left[\text{erf}\!\left(\frac{t-t_s}{\sigma_r}\right) - \text{erf}\!\left(\frac{t-t_e}{\sigma_f}\right)\right]$$
+$$\Phi_\text{ideal}(t) = \frac{A}{2}\left[\text{erf} \left(\frac{t-t_s}{\sigma_r}\right) - \text{erf} \left(\frac{t-t_e}{\sigma_f}\right)\right]$$
 
 但直接使用时 $\Phi(0) \neq 0$（erf 函数在有限 $t_s$ 处有残余值）。**解析零点修正**后：
 
-$$\Phi(t) = \frac{A}{2}\!\left[\left(\text{erf}\frac{t-t_s}{\sigma_r}+\text{erf}\frac{t_s}{\sigma_r}\right) - \left(\text{erf}\frac{t-t_e}{\sigma_f}+\text{erf}\frac{t_e}{\sigma_f}\right)\right]$$
+$$\Phi(t) = \frac{A}{2} \left[\left(\text{erf}\frac{t-t_s}{\sigma_r}+\text{erf}\frac{t_s}{\sigma_r}\right) - \left(\text{erf}\frac{t-t_e}{\sigma_f}+\text{erf}\frac{t_e}{\sigma_f}\right)\right]$$
 
 严格保证 $\Phi(0) = 0$（无直流偏置跳变）。根据方程Eq.S26，在理想条件下，有
 $$\delta_{\mathrm{ext}}(t)=(\pi-\delta_{\mathrm{off}})\Phi(t)+\delta_{\mathrm{off}}$$
-若存在波形畸变（见3.3节），则$\Phi(t)\to \tilde{\Phi}(t)$，相应的真实外加磁通也会畸变。
+若存在波形畸变（见3.3节），则 $\Phi(t)\to \tilde{\Phi}(t)$，相应的真实外加磁通也会畸变。
 
 ### 3.2 波形参数
 
@@ -151,18 +151,18 @@ $$\delta_{\mathrm{ext}}(t)=(\pi-\delta_{\mathrm{off}})\Phi(t)+\delta_{\mathrm{of
 
 **① Gaussian 低通滤波器（250 MHz，主要效应）**
 
-$$\tilde{\Phi}(\omega) = \Phi(\omega) \cdot \exp\!\left(-\frac{\omega^2}{2(2\pi \cdot 250\,\text{MHz})^2}\right)$$
+$$\tilde{\Phi}(\omega) = \Phi(\omega) \cdot \exp \left(-\frac{\omega^2}{2(2\pi \cdot 250 \text{MHz})^2}\right)$$
 
-时域卷积宽度 $\sigma_t = 1/(2\pi \times 250\,\text{MHz}) \approx 0.64\,\text{ns}$。
+时域卷积宽度 $\sigma_t = 1/(2\pi \times 250 \text{MHz}) \approx 0.64 \text{ns}$。
 该滤波器解释了实验中适度平滑脉冲优于极端尖锐脉冲的现象：过于尖锐的上升沿在经过 LPF 后幅度大幅衰减，实际到达样品的磁通偏小，耦合器无法充分打开。
 
-**② Bias tee RC 高通（次要效应，时间常数 $\tau \approx 500\,\text{ns}$）**
+**② Bias tee RC 高通（次要效应，时间常数 $\tau \approx 500 \text{ns}$）**
 
 离散递推公式（因果滤波）：
 
 $$h_i = (1-\alpha)(h_{i-1} + x_i - x_{i-1}), \quad \alpha = \frac{\Delta t}{\tau + \Delta t}$$
 
-在脉冲宽度远小于 $\tau$ 时可忽略，但对 $T > 100\,\text{ns}$ 的宽脉冲有拖尾效应。
+在脉冲宽度远小于 $\tau$ 时可忽略，但对 $T > 100 \text{ns}$ 的宽脉冲有拖尾效应。
 
 注意在实际实验中，只需直接调用CMA-ES的黑箱优化算法，不需要知道实际噪声模型。
 
