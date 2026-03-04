@@ -48,10 +48,15 @@ def eq_S23_Gamma(g1):
     return 2 * np.pi * (g1**2) / w_FSR
 
 
-def eq_S26_control_pulse(t_arr, amp, sig_rise, sig_fall, width):
-    t_start = 10.0
-    t_end = t_start + width
-    # 减去 t=0 处的基底，保证波形严格从 0 出发：
+_N_SIGMA = 3   # t_start / t_tail 留 N_σ 倍的余量，使边沿在端点处的导数 < e^{-25} ≈ 0
+
+def eq_S26_control_pulse(t_arr, amp, sig_rise, sig_fall, width, t_start=None):
+    # t_start 默认由 sig_rise 决定，确保 t=0 处 erf 尾巴可忽略：
+    #   d(pulse)/dt|_{t=0} ∝ exp(-(t_start/sig_rise)²) < e^{-N²}
+    if t_start is None:
+        t_start = _N_SIGMA * sig_rise
+
+    t_end = 2 * t_start + width + _N_SIGMA * sig_fall
     return (amp / 2.0) * (
         (erf((t_arr - t_start) / sig_rise) + erf(t_start / sig_rise)) -
         (erf((t_arr - t_end)   / sig_fall) + erf(t_end   / sig_fall))
@@ -82,22 +87,26 @@ def apply_hardware_distortion(signal, dt=0.1):
     filtered = gaussian_filter1d(signal.astype(float), sigma=sigma_samp)
 
     # ② Bias tee RC 高通（可选，解注释后生效）
-    # tau_hp_ns = 500.0   # ns，典型值 100–2000 ns，视实验系统调整
-    # alpha = dt / (tau_hp_ns + dt)
-    # hp = np.zeros_like(filtered)
-    # for i in range(1, len(filtered)):
-    #     hp[i] = (1 - alpha) * (hp[i-1] + filtered[i] - filtered[i-1])
-    # return hp
+    tau_hp_ns = 500.0   # ns，典型值 100–2000 ns，视实验系统调整
+    alpha = dt / (tau_hp_ns + dt)
+    hp = np.zeros_like(filtered)
+    for i in range(1, len(filtered)):
+        hp[i] = (1 - alpha) * (hp[i-1] + filtered[i] - filtered[i-1])
+    return hp
 
-    return filtered
+    # return filtered
 
 
 def simulate_single_T1_point(T_width, params):
     amp, sig_rise, sig_fall = params
     dt = 0.1
-    t_arr = np.arange(0, 10.0 + T_width + 40.0, dt) 
-    
-    pulse = eq_S26_control_pulse(t_arr, amp, sig_rise, sig_fall, T_width)
+    # t_start / t_tail 与脉冲函数保持一致，确保时间窗口两端波形已充分平息
+    t_start = _N_SIGMA * sig_rise
+    t_tail  = _N_SIGMA * sig_fall
+    t_arr = np.arange(0, 2 *t_start + T_width + 2 * t_tail + 20, dt)
+
+    pulse = eq_S26_control_pulse(t_arr, amp, sig_rise, sig_fall, T_width,
+                                 t_start=t_start)
     distorted_pulse = apply_hardware_distortion(pulse)
     
     phi_off = np.pi / 2.0
@@ -193,13 +202,7 @@ def measure_T1(params):
     #     plt.show()
 
     m, c = np.polyfit(T_sweep, np.log(np.array(P1_results) + 1e-12), 1)
-    
     T1 = -1.0 / m if m < 0 else 1000.0
-    
-    # 🌟 关键：加入截距惩罚，消除下降沿导致的无尽漏电长尾
-    # 截距 c 越接近 0 越好 (P1在 T->0 时应接近 1, log(P1)->0)
-    # edge_leakage_penalty = -c * 20.0
-    # edge_leakage_penalty = max(0, -c * 20.0)  # 只有当 c < 0 时才惩罚，避免过度惩罚 
     time.sleep(0.1) # 模拟测量时间延迟
     return T1
 
@@ -208,11 +211,9 @@ def measure_T1(params):
 # ==========================================
 if __name__ == "__main__":
     print("开始 CMA-ES 寻优...")
-    x0 = [1.0, 0.2, 0.2] # 初始猜测
-    measure_T1(x0)
-    
+    x0 = [1, 2, 2] # 初始猜测
     sigma0 = 0.2
-    bounds = [[0.7, 0.1, 0.1], [1.3, 15.0, 15.0]]
+    bounds = [[0.7, 1, 1], [1.3, 15.0, 15.0]]
     
     options = {'bounds': bounds, 
                'popsize': 6, 
@@ -242,9 +243,9 @@ if __name__ == "__main__":
     T1_init = -1.0 / m_init
     T1_opt = -1.0 / m_opt
 
-    # 2. 获取单个脉冲 (T=50ns) 的微观动力学
-    _, Gamma_init, t_arr_50 = simulate_single_T1_point(50.0, x0)
-    _, Gamma_opt, _ = simulate_single_T1_point(50.0, best_params)
+    # 2. 获取单个脉冲 (T=15ns) 的微观动力学
+    _, Gamma_init, t_arr_15_init = simulate_single_T1_point(15.0, x0)
+    _, Gamma_opt, t_arr_15_opt = simulate_single_T1_point(15.0, best_params)
 
     # 3. 开始绘图
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(14, 5))
@@ -260,16 +261,16 @@ if __name__ == "__main__":
     ax1.grid(True, which="both", ls="--", alpha=0.5)
 
     # --- 子图 2: 初始波形 vs 优化后波形 ---
-    T_show = 50.0
-    pulse_init = eq_S26_control_pulse(t_arr_50, x0[0], x0[1], x0[2], T_show)
-    pulse_opt = eq_S26_control_pulse(t_arr_50, best_params[0], best_params[1], best_params[2], T_show)
+    T_show = 15
+    pulse_init = eq_S26_control_pulse(t_arr_15_init, x0[0], x0[1], x0[2], T_show)
+    pulse_opt = eq_S26_control_pulse(t_arr_15_opt, best_params[0], best_params[1], best_params[2], T_show)
 
     # 如需看硬件后的实际输出波形，使用畸变后的信号
     wave_init = apply_hardware_distortion(pulse_init)
     wave_opt = apply_hardware_distortion(pulse_opt)
 
-    ax2.plot(t_arr_50, pulse_init, 'k--', label='Initial Waveform')
-    ax2.plot(t_arr_50, pulse_opt, 'r-', linewidth=2, label='Optimized Waveform')
+    ax2.plot(t_arr_15_init, pulse_init, 'k--', label='Initial Waveform')
+    ax2.plot(t_arr_15_opt, pulse_opt, 'r-', linewidth=2, label='Optimized Waveform')
     ax2.set_xlabel('Time (ns)', fontsize=12)
     ax2.set_ylabel('Purcell Decay Rate $\Gamma(t)$ (rad/ns)', fontsize=12)
     ax2.set_title('Microscopic Dynamics: Effective Coupler Opening', fontsize=14)

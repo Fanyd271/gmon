@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>eq_S26 控制脉冲波形可视化</title>
+<title>eq_S26 控制脉冲可视化</title>
 <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
@@ -14,391 +14,556 @@ body {
     flex-direction: column;
     align-items: center;
     min-height: 100vh;
-    padding: 24px 16px;
-    gap: 16px;
+    padding: 20px 16px;
+    gap: 14px;
 }
-h1 {
-    font-size: 1.3em;
-    color: #60a5fa;
-    letter-spacing: 0.03em;
-}
+h1 { font-size: 1.25em; color: #60a5fa; letter-spacing: 0.03em; }
 .formula-box {
     font-family: 'Courier New', monospace;
     background: #1e3a5f;
     border: 1px solid #2563eb55;
     border-radius: 10px;
-    padding: 10px 24px;
-    font-size: 0.93em;
+    padding: 9px 22px;
+    font-size: 0.88em;
     color: #93c5fd;
     text-align: center;
-    line-height: 1.8;
-}
-.formula-box .sub {
-    color: #6b7280;
-    font-size: 0.82em;
-}
-.main {
-    display: flex;
-    gap: 20px;
+    line-height: 1.85;
     width: 100%;
     max-width: 1120px;
-    align-items: flex-start;
-    flex-wrap: wrap;
+}
+.formula-box .sub { color: #6b7280; font-size: 0.80em; }
+.section-label {
+    width: 100%; max-width: 1120px;
+    font-size: 0.75em; color: #6b7280;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    border-bottom: 1px solid #1f2937;
+    padding-bottom: 5px;
+}
+.row {
+    display: flex; gap: 18px;
+    width: 100%; max-width: 1120px;
+    align-items: flex-start; flex-wrap: wrap;
 }
 .canvas-wrap {
-    flex: 1;
-    min-width: 460px;
+    flex: 1; min-width: 420px;
     background: #0d1117;
     border: 1px solid #21262d;
-    border-radius: 12px;
-    overflow: hidden;
+    border-radius: 12px; overflow: hidden;
 }
 canvas { display: block; width: 100%; height: auto; }
-
-.controls {
+.panel {
     background: #1f2937;
     border: 1px solid #374151;
     border-radius: 12px;
-    padding: 20px;
-    min-width: 270px;
-    display: flex;
-    flex-direction: column;
-    gap: 18px;
+    padding: 18px;
+    min-width: 260px;
+    display: flex; flex-direction: column; gap: 14px;
 }
-.ctrl-title {
-    font-size: 0.8em;
-    color: #6b7280;
-    text-transform: uppercase;
-    letter-spacing: 0.1em;
-    border-bottom: 1px solid #374151;
-    padding-bottom: 8px;
-    margin-bottom: 2px;
+.panel-title {
+    font-size: 0.76em; color: #6b7280;
+    text-transform: uppercase; letter-spacing: 0.1em;
+    border-bottom: 1px solid #374151; padding-bottom: 7px;
 }
-.ctrl-group { display: flex; flex-direction: column; gap: 4px; }
-.ctrl-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: baseline;
-}
-.ctrl-name {
+.ctrl { display: flex; flex-direction: column; gap: 3px; }
+.ctrl-row { display: flex; justify-content: space-between; align-items: baseline; }
+.lbl {
     font-family: 'Courier New', monospace;
-    font-size: 0.97em;
-    color: #60a5fa;
-    font-weight: bold;
+    font-size: 0.95em; color: #60a5fa; font-weight: bold;
 }
-.ctrl-val {
+.lbl.derived { color: #a78bfa; }
+.lbl.fixed   { color: #4b5563; }
+.val {
     font-family: 'Courier New', monospace;
-    font-size: 1em;
-    color: #fbbf24;
-    min-width: 48px;
-    text-align: right;
+    font-size: 0.97em; color: #fbbf24;
+    min-width: 72px; text-align: right;
 }
-.ctrl-desc { font-size: 0.78em; color: #6b7280; }
+.val.derived { color: #a78bfa; }
+.val.fixed   { color: #4b5563; }
+.desc { font-size: 0.75em; color: #6b7280; }
 input[type=range] {
-    width: 100%;
-    height: 5px;
-    accent-color: #3b82f6;
-    cursor: pointer;
-    margin-top: 2px;
+    width: 100%; height: 5px;
+    accent-color: #3b82f6; cursor: pointer; margin-top: 2px;
 }
-.ctrl-limits {
-    display: flex;
-    justify-content: space-between;
-    font-size: 0.7em;
-    color: #4b5563;
-}
+.limits { display: flex; justify-content: space-between; font-size: 0.68em; color: #374151; }
 .legend {
-    display: flex;
-    gap: 16px;
-    flex-wrap: wrap;
-    justify-content: center;
-    font-size: 0.8em;
+    display: flex; gap: 18px; flex-wrap: wrap;
+    justify-content: center; font-size: 0.78em;
 }
-.leg-item { display: flex; align-items: center; gap: 6px; }
-.leg-swatch { width: 24px; height: 3px; border-radius: 2px; }
+.leg { display: flex; align-items: center; gap: 6px; }
+.swatch { width: 28px; height: 3px; border-radius: 2px; }
 </style>
 </head>
 <body>
 
-<h1>eq_S26 — 控制脉冲波形可视化</h1>
+<h1>eq_S26 — 控制脉冲与硬件畸变可视化</h1>
 
 <div class="formula-box">
-    pulse(t) &nbsp;=&nbsp; (amp/2) &times;
-    [ ( erf((t&minus;t_s)/&sigma;_r) <span style="color:#86efac">+ erf(t_s/&sigma;_r)</span> )
-    &minus; ( erf((t&minus;t_e)/&sigma;_f) <span style="color:#86efac">+ erf(t_e/&sigma;_f)</span> ) ]
-    <br><span class="sub">t_e = t_s + width &nbsp;|&nbsp; 绿色修正项保证 pulse(0)=0 且 pulse(∞)→0</span>
+  pulse(t) = (amp/2) ×
+  [ ( erf((t−t_s)/σ_r) <span style="color:#86efac">+ erf(t_s/σ_r)</span> )
+  − ( erf((t−t_e)/σ_f) <span style="color:#86efac">+ erf(t_e/σ_f)</span> ) ]
+  <br>
+  <span class="sub">
+    t_s = N_σ × σ_rise &nbsp;|&nbsp; t_e = t_s + width(50 ns, 固定)
+    &nbsp;|&nbsp; 绿色修正项保证 pulse(0) = 0 且 pulse(∞) → 0
+  </span>
 </div>
 
-<div class="main">
-    <div class="canvas-wrap">
-        <canvas id="cv" width="760" height="440"></canvas>
+<!-- ── 上方：原始脉冲 ── -->
+<div class="section-label">原始控制脉冲</div>
+<div class="row">
+  <div class="canvas-wrap">
+    <canvas id="cv1" width="760" height="380"></canvas>
+  </div>
+  <div class="panel">
+    <div class="panel-title">脉冲参数（4个可调）</div>
+
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl">amp</span>
+        <span class="val" id="v_amp">1.00</span>
+      </div>
+      <div class="desc">脉冲幅度（正向↑ / 负向↓）</div>
+      <input type="range" id="s_amp" min="-2.0" max="2.0" step="0.01" value="1.0">
+      <div class="limits"><span>−2.00</span><span>+2.00</span></div>
     </div>
 
-    <div class="controls">
-        <div class="ctrl-title">参数控制</div>
-
-        <div class="ctrl-group">
-            <div class="ctrl-header">
-                <span class="ctrl-name">amp</span>
-                <span class="ctrl-val" id="v_amp">1.00</span>
-            </div>
-            <div class="ctrl-desc">脉冲幅度（正向↑ / 负向↓）</div>
-            <input type="range" id="s_amp" min="-2.0" max="2.0" step="0.01" value="1.0">
-            <div class="ctrl-limits"><span>-2.00</span><span>+2.00</span></div>
-        </div>
-
-        <div class="ctrl-group">
-            <div class="ctrl-header">
-                <span class="ctrl-name">&sigma;_rise (ns)</span>
-                <span class="ctrl-val" id="v_sr">2.00</span>
-            </div>
-            <div class="ctrl-desc">上升沿 Gaussian 宽度</div>
-            <input type="range" id="s_sr" min="0.1" max="15.0" step="0.1" value="2.0">
-            <div class="ctrl-limits"><span>0.1</span><span>15.0</span></div>
-        </div>
-
-        <div class="ctrl-group">
-            <div class="ctrl-header">
-                <span class="ctrl-name">&sigma;_fall (ns)</span>
-                <span class="ctrl-val" id="v_sf">2.00</span>
-            </div>
-            <div class="ctrl-desc">下降沿 Gaussian 宽度</div>
-            <input type="range" id="s_sf" min="0.1" max="15.0" step="0.1" value="2.0">
-            <div class="ctrl-limits"><span>0.1</span><span>15.0</span></div>
-        </div>
-
-        <div class="ctrl-group">
-            <div class="ctrl-header">
-                <span class="ctrl-name">t_start (ns)</span>
-                <span class="ctrl-val" id="v_ts">10.00</span>
-            </div>
-            <div class="ctrl-desc">脉冲上升沿中心时刻</div>
-            <input type="range" id="s_ts" min="0" max="50" step="0.5" value="10">
-            <div class="ctrl-limits"><span>0</span><span>50</span></div>
-        </div>
-
-        <div class="ctrl-group">
-            <div class="ctrl-header">
-                <span class="ctrl-name">width (ns)</span>
-                <span class="ctrl-val" id="v_w">50.00</span>
-            </div>
-            <div class="ctrl-desc">脉冲平顶持续时间</div>
-            <input type="range" id="s_w" min="1" max="150" step="1" value="50">
-            <div class="ctrl-limits"><span>1</span><span>150</span></div>
-        </div>
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl">σ_rise (ns)</span>
+        <span class="val" id="v_sr">2.00</span>
+      </div>
+      <div class="desc">上升沿 Gaussian 宽度</div>
+      <input type="range" id="s_sr" min="0.1" max="15.0" step="0.1" value="2.0">
+      <div class="limits"><span>0.1</span><span>15.0</span></div>
     </div>
+
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl">σ_fall (ns)</span>
+        <span class="val" id="v_sf">2.00</span>
+      </div>
+      <div class="desc">下降沿 Gaussian 宽度</div>
+      <input type="range" id="s_sf" min="0.1" max="15.0" step="0.1" value="2.0">
+      <div class="limits"><span>0.1</span><span>15.0</span></div>
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl">N_σ</span>
+        <span class="val" id="v_ns">3.0</span>
+      </div>
+      <div class="desc">t_s = N_σ × σ_rise（边沿平滑余量）</div>
+      <input type="range" id="s_ns" min="1.0" max="8.0" step="0.5" value="3.0">
+      <div class="limits"><span>1.0</span><span>8.0</span></div>
+    </div>
+
+    <!-- 派生量展示 -->
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl derived">t_start</span>
+        <span class="val derived" id="v_ts">6.00 ns</span>
+      </div>
+      <div class="desc">= N_σ × σ_rise（自动计算）</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl fixed">width</span>
+        <span class="val fixed">50.00 ns</span>
+      </div>
+      <div class="desc">脉冲平顶宽度（固定不变）</div>
+    </div>
+  </div>
 </div>
 
+<!-- ── 下方：畸变后波形 ── -->
+<div class="section-label">硬件畸变后波形</div>
+<div class="row">
+  <div class="canvas-wrap">
+    <canvas id="cv2" width="760" height="340"></canvas>
+  </div>
+  <div class="panel">
+    <div class="panel-title">畸变参数（2个可调）</div>
+
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl">BW_LPF (MHz)</span>
+        <span class="val" id="v_bw">250</span>
+      </div>
+      <div class="desc">Gaussian LPF 带宽（论文：250 MHz）</div>
+      <input type="range" id="s_bw" min="50" max="1000" step="10" value="250">
+      <div class="limits"><span>50 MHz</span><span>1000 MHz</span></div>
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl derived">σ_t (LPF)</span>
+        <span class="val derived" id="v_st">0.637 ns</span>
+      </div>
+      <div class="desc">= 1/(2π·BW)，时域 Gaussian 宽度</div>
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl">τ_HP (ns)</span>
+        <span class="val" id="v_tau">500</span>
+      </div>
+      <div class="desc">Bias tee RC 高通时间常数</div>
+      <input type="range" id="s_tau" min="10" max="2000" step="10" value="500">
+      <div class="limits"><span>10 ns</span><span>2000 ns</span></div>
+    </div>
+
+    <div class="ctrl">
+      <div class="ctrl-row">
+        <span class="lbl derived">f_c (HP)</span>
+        <span class="val derived" id="v_fc">0.318 MHz</span>
+      </div>
+      <div class="desc">= 1/(2π·τ_HP)，高通截止频率</div>
+    </div>
+  </div>
+</div>
+
+<!-- 重置按钮 -->
+<div style="text-align:center; margin: 12px 0 4px;">
+  <button id="btn_reset" onclick="resetDefaults()"
+    style="background:#374151;color:#e5e7eb;border:1px solid #4b5563;border-radius:6px;
+           padding:7px 28px;font-size:14px;cursor:pointer;letter-spacing:.5px;"
+    onmouseover="this.style.background='#4b5563'" onmouseout="this.style.background='#374151'">
+    &#8635; 恢复初始值
+  </button>
+</div>
+
+<!-- 图例 -->
 <div class="legend">
-    <div class="leg-item"><div class="leg-swatch" style="background:#38bdf8"></div><span>pulse(t)</span></div>
-    <div class="leg-item"><div class="leg-swatch" style="background:#f59e0b;border-top:2px dashed #f59e0b;height:0"></div><span>t_start</span></div>
-    <div class="leg-item"><div class="leg-swatch" style="background:#f87171;border-top:2px dashed #f87171;height:0"></div><span>t_end</span></div>
-    <div class="leg-item"><div class="leg-swatch" style="background:#34d399;border-top:2px dashed #34d39966;height:0"></div><span>amp</span></div>
+  <div class="leg"><div class="swatch" style="background:#38bdf855;outline:1px solid #38bdf8"></div><span style="color:#9ca3af">原始脉冲</span></div>
+  <div class="leg"><div class="swatch" style="background:#fb923c"></div><span>经 Gaussian LPF</span></div>
+  <div class="leg"><div class="swatch" style="background:#34d399"></div><span>经 LPF + Bias tee HP</span></div>
+  <div class="leg"><div class="swatch" style="background:#f59e0b;height:0;border-top:2px dashed #f59e0b"></div><span>t_start</span></div>
+  <div class="leg"><div class="swatch" style="background:#f87171;height:0;border-top:2px dashed #f87171"></div><span>t_end</span></div>
 </div>
 
 <script>
-// ── Abramowitz & Stegun erf 近似, 误差 < 1.5e-7 ──
+// ================================================================
+// 常量
+// ================================================================
+const DT    = 0.1;   // 时间步长 (ns)
+const W_NS  = 50.0;  // 脉冲平顶宽度 (ns，固定)
+
+// ================================================================
+// erf (Abramowitz & Stegun, 误差 < 1.5e-7)
+// ================================================================
 function erf(x) {
     const s = x < 0 ? -1 : 1;
     x = Math.abs(x);
     const t = 1 / (1 + 0.3275911 * x);
     const y = 1 - (((((1.061405429*t - 1.453152027)*t + 1.421413741)*t
-                - 0.284496736)*t + 0.254829592)*t) * Math.exp(-x*x);
+                    - 0.284496736)*t + 0.254829592)*t) * Math.exp(-x * x);
     return s * y;
 }
 
-function pulse(t, amp, sr, sf, ts, w) {
-    const te = ts + w;
-    // 解析零点修正：减去 t=0 处基底，保证首尾归零
+// ================================================================
+// 控制脉冲（零点修正版）
+// ================================================================
+function pulseFn(t, amp, sr, sf, t_s) {
+    const t_e = t_s + W_NS;
     return (amp / 2) * (
-        (erf((t - ts) / sr) + erf(ts / sr)) -
-        (erf((t - te) / sf) + erf(te / sf))
+        (erf((t - t_s) / sr) + erf(t_s / sr)) -
+        (erf((t - t_e) / sf) + erf(t_e / sf))
     );
 }
 
-const cv  = document.getElementById('cv');
-const ctx = cv.getContext('2d');
-const PAD = { l:62, r:24, t:36, b:52 };
-
-function getP() {
-    return {
-        amp: +document.getElementById('s_amp').value,
-        sr:  +document.getElementById('s_sr').value,
-        sf:  +document.getElementById('s_sf').value,
-        ts:  +document.getElementById('s_ts').value,
-        w:   +document.getElementById('s_w').value,
-    };
+// ================================================================
+// Gaussian LPF（零相位卷积，与 scipy.ndimage.gaussian_filter1d 一致）
+// ================================================================
+function gaussianLPF(arr, sigma_ns) {
+    const sigma_s = sigma_ns / DT;
+    const R   = Math.min(Math.ceil(4.5 * sigma_s), 350);
+    const N   = arr.length;
+    const ker = new Float64Array(2 * R + 1);
+    let ksum  = 0;
+    for (let i = 0; i <= 2 * R; i++) {
+        ker[i] = Math.exp(-0.5 * ((i - R) / sigma_s) ** 2);
+        ksum  += ker[i];
+    }
+    const out = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+        let acc = 0;
+        for (let j = 0; j <= 2 * R; j++) {
+            const si = i - R + j;
+            const v  = si < 0 ? arr[0] : si >= N ? arr[N - 1] : arr[si];
+            acc += ker[j] * v;
+        }
+        out[i] = acc / ksum;
+    }
+    return out;
 }
 
-function draw() {
-    const p = getP();
-    const W = cv.width, H = cv.height;
-    const pw = W - PAD.l - PAD.r;
-    const ph = H - PAD.t - PAD.b;
-
-    const T0 = 0, T1 = Math.max(p.ts + p.w + 40, 140);
-    const N  = 1000;
-    const ts = [], ys = [];
-    for (let i = 0; i <= N; i++) {
-        const t = T0 + (T1 - T0) * i / N;
-        ts.push(t);
-        ys.push(pulse(t, p.amp, p.sr, p.sf, p.ts, p.w));
+// ================================================================
+// Bias tee 高通（因果 RC 高通，与 Python 代码一致）
+// ================================================================
+function biasTeeHP(arr, tau_ns) {
+    const alpha = DT / (tau_ns + DT);
+    const out   = new Float64Array(arr.length);
+    for (let i = 1; i < arr.length; i++) {
+        out[i] = (1 - alpha) * (out[i - 1] + arr[i] - arr[i - 1]);
     }
+    return out;
+}
 
-    // 零点锁定在图中央：y 轴关于 0 对称，范围仅由 |amp| 决定
-    const yRange = Math.max(Math.abs(p.amp) * 1.3, 0.15);
-    const yMax =  yRange;
-    const yMin = -yRange;
-    const ySpan = 2 * yRange;
+// ================================================================
+// 读取控件参数
+// ================================================================
+function getP() {
+    const amp = +document.getElementById('s_amp').value;
+    const sr  = +document.getElementById('s_sr').value;
+    const sf  = +document.getElementById('s_sf').value;
+    const Ns  = +document.getElementById('s_ns').value;
+    const bw  = +document.getElementById('s_bw').value;   // MHz
+    const tau = +document.getElementById('s_tau').value;  // ns
+    const t_s = Ns * sr;
+    const t_e = t_s + W_NS;
+    const t_tail = Ns * sf;
+    return { amp, sr, sf, Ns, bw, tau, t_s, t_e, t_tail };
+}
 
+// ================================================================
+// 生成时间轴和全部信号
+// ================================================================
+function buildSignals(p) {
+    const T_total = p.t_s + W_NS + p.t_tail;
+    const N = Math.max(Math.round(T_total / DT) + 1, 10);
+    const ts    = new Float64Array(N);
+    const ys    = new Float64Array(N);
+    for (let i = 0; i < N; i++) {
+        ts[i] = i * DT;
+        ys[i] = pulseFn(ts[i], p.amp, p.sr, p.sf, p.t_s);
+    }
+    const sigma_t = 1.0 / (2 * Math.PI * p.bw / 1000);  // ns
+    const ys_lpf  = gaussianLPF(ys, sigma_t);
+    const ys_hp   = biasTeeHP(ys_lpf, p.tau);
+    return { ts, ys, ys_lpf, ys_hp, sigma_t };
+}
+
+// ================================================================
+// 绘图工具
+// ================================================================
+const PAD = { l: 64, r: 24, t: 36, b: 50 };
+
+function axes(ctx, W, H, T0, T1, yMin, yMax) {
+    const pw = W - PAD.l - PAD.r, ph = H - PAD.t - PAD.b;
+    const ySpan = yMax - yMin;
     const mx = t => PAD.l + (t - T0) / (T1 - T0) * pw;
     const my = y => PAD.t + (1 - (y - yMin) / ySpan) * ph;
 
-    // ── 清空 ──
-    ctx.clearRect(0, 0, W, H);
-
-    // ── 网格 ──
-    const NX = 8, NY = 6;
-    ctx.strokeStyle = '#1e293b';
-    ctx.lineWidth = 1;
-    for (let i = 0; i <= NX; i++) {
-        const x = PAD.l + i/NX * pw;
-        ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t+ph); ctx.stroke();
+    // 网格
+    ctx.strokeStyle = '#1e293b'; ctx.lineWidth = 1;
+    for (let i = 0; i <= 8; i++) {
+        const x = PAD.l + i / 8 * pw;
+        ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t + ph); ctx.stroke();
     }
-    for (let j = 0; j <= NY; j++) {
-        const y = PAD.t + j/NY * ph;
-        ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l+pw, y); ctx.stroke();
+    for (let j = 0; j <= 6; j++) {
+        const y = PAD.t + j / 6 * ph;
+        ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l + pw, y); ctx.stroke();
     }
 
-    // ── 零线 ──
+    // 零线
     const y0 = my(0);
     ctx.save();
-    ctx.strokeStyle = '#374151';
-    ctx.lineWidth = 1.2;
-    ctx.setLineDash([6, 5]);
-    ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(PAD.l+pw, y0); ctx.stroke();
-    ctx.setLineDash([]);
-    ctx.restore();
+    ctx.strokeStyle = '#374151'; ctx.lineWidth = 1.2; ctx.setLineDash([6, 5]);
+    ctx.beginPath(); ctx.moveTo(PAD.l, y0); ctx.lineTo(PAD.l + pw, y0); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
 
-    // ── t_start / t_end 标注 ──
-    const te = p.ts + p.w;
-    function vLine(t, color, label) {
-        if (t < T0 || t > T1) return;
-        const x = mx(t);
-        ctx.save();
-        ctx.strokeStyle = color;
-        ctx.lineWidth = 1.4;
-        ctx.setLineDash([5, 4]);
-        ctx.beginPath(); ctx.moveTo(x, PAD.t); ctx.lineTo(x, PAD.t+ph); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = color;
-        ctx.font = 'bold 11px monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText(label, x + 4, PAD.t + 16);
-        ctx.restore();
-    }
-    vLine(p.ts, '#f59e0b', 't_start');
-    vLine(te,   '#f87171', 't_end');
-
-    // ── 实际极值水平线（amp > 0 取最大值，amp < 0 取最小值）──
-    {
-        const yExtreme = p.amp >= 0 ? Math.max(...ys) : Math.min(...ys);
-        const ya = my(yExtreme);
-        // 标签位于线的外侧（正向在上方，负向在下方）
-        const labelOffY = p.amp >= 0 ? -6 : 14;
-        ctx.save();
-        ctx.strokeStyle = '#34d39966';
-        ctx.lineWidth = 1.2;
-        ctx.setLineDash([4, 6]);
-        ctx.beginPath(); ctx.moveTo(PAD.l, ya); ctx.lineTo(PAD.l+pw, ya); ctx.stroke();
-        ctx.setLineDash([]);
-        ctx.fillStyle = '#34d399';
-        ctx.font = '11px monospace';
-        ctx.textAlign = 'left';
-        ctx.fillText(`peak = ${yExtreme.toFixed(3)}  (amp = ${p.amp.toFixed(2)})`, PAD.l + 6, ya + labelOffY);
-        ctx.restore();
-    }
-
-    // ── 填充面积（渐变从零线出发，朝极值方向淡出）──
-    const gradEnd = p.amp >= 0 ? PAD.t : PAD.t + ph;
-    const grad = ctx.createLinearGradient(0, y0, 0, gradEnd);
-    grad.addColorStop(0,   'rgba(56,189,248,0.00)');
-    grad.addColorStop(0.3, 'rgba(56,189,248,0.22)');
-    grad.addColorStop(1,   'rgba(56,189,248,0.28)');
-    ctx.beginPath();
-    ctx.moveTo(mx(ts[0]), y0);
-    ts.forEach((t,i) => ctx.lineTo(mx(t), my(ys[i])));
-    ctx.lineTo(mx(ts[ts.length-1]), y0);
-    ctx.closePath();
-    ctx.fillStyle = grad;
-    ctx.fill();
-
-    // ── 主曲线 ──
-    ctx.beginPath();
-    ctx.moveTo(mx(ts[0]), my(ys[0]));
-    ts.forEach((t,i) => ctx.lineTo(mx(t), my(ys[i])));
-    ctx.strokeStyle = '#38bdf8';
-    ctx.lineWidth = 2.5;
-    ctx.lineJoin = 'round';
-    ctx.stroke();
-
-    // ── 坐标轴边框 ──
-    ctx.strokeStyle = '#4b5563';
-    ctx.lineWidth = 1.5;
+    // 边框
+    ctx.strokeStyle = '#4b5563'; ctx.lineWidth = 1.5;
     ctx.strokeRect(PAD.l, PAD.t, pw, ph);
 
-    // ── X 刻度 & 标签 ──
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '11px sans-serif';
-    ctx.textAlign = 'center';
-    for (let i = 0; i <= NX; i++) {
-        const tv = T0 + (T1-T0)*i/NX;
-        const x  = PAD.l + i/NX * pw;
-        ctx.beginPath(); ctx.moveTo(x, PAD.t+ph); ctx.lineTo(x, PAD.t+ph+5); ctx.stroke();
-        ctx.fillText(tv.toFixed(0), x, PAD.t+ph+18);
+    // X 刻度 & 轴标签
+    ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif'; ctx.textAlign = 'center';
+    for (let i = 0; i <= 8; i++) {
+        const tv = T0 + (T1 - T0) * i / 8;
+        const x  = PAD.l + i / 8 * pw;
+        ctx.beginPath(); ctx.moveTo(x, PAD.t + ph); ctx.lineTo(x, PAD.t + ph + 5); ctx.stroke();
+        ctx.fillText(tv.toFixed(0), x, PAD.t + ph + 17);
     }
-    ctx.fillStyle = '#d1d5db';
-    ctx.font = '13px sans-serif';
-    ctx.fillText('Time (ns)', PAD.l + pw/2, H - 6);
+    ctx.fillStyle = '#d1d5db'; ctx.font = '13px sans-serif';
+    ctx.fillText('Time (ns)', PAD.l + pw / 2, H - 5);
 
-    // ── Y 刻度 & 标签 ──
-    ctx.textAlign = 'right';
-    ctx.fillStyle = '#9ca3af';
-    ctx.font = '11px sans-serif';
-    for (let j = 0; j <= NY; j++) {
-        const yv = yMin + ySpan*(1 - j/NY);
-        const y  = PAD.t + j/NY * ph;
-        ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l-5, y); ctx.stroke();
+    // Y 刻度 & 轴标签
+    ctx.textAlign = 'right'; ctx.fillStyle = '#9ca3af'; ctx.font = '11px sans-serif';
+    for (let j = 0; j <= 6; j++) {
+        const yv = yMin + ySpan * (1 - j / 6);
+        const y  = PAD.t + j / 6 * ph;
+        ctx.beginPath(); ctx.moveTo(PAD.l, y); ctx.lineTo(PAD.l - 5, y); ctx.stroke();
         ctx.fillText(yv.toFixed(2), PAD.l - 8, y + 4);
     }
     ctx.save();
-    ctx.translate(14, PAD.t + ph/2);
-    ctx.rotate(-Math.PI/2);
-    ctx.fillStyle = '#d1d5db';
-    ctx.font = '13px sans-serif';
-    ctx.textAlign = 'center';
+    ctx.translate(14, PAD.t + ph / 2); ctx.rotate(-Math.PI / 2);
+    ctx.fillStyle = '#d1d5db'; ctx.font = '13px sans-serif'; ctx.textAlign = 'center';
     ctx.fillText('Amplitude', 0, 0);
+    ctx.restore();
+
+    return { mx, my, y0, pw, ph };
+}
+
+function curve(ctx, ts, ys, mx, my, color, lw, dash = []) {
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = lw; ctx.lineJoin = 'round';
+    if (dash.length) ctx.setLineDash(dash);
+    ctx.beginPath();
+    ctx.moveTo(mx(ts[0]), my(ys[0]));
+    for (let i = 1; i < ts.length; i++) ctx.lineTo(mx(ts[i]), my(ys[i]));
+    ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+}
+
+function vmark(ctx, t, T0, T1, PADl, PADt, pw, ph, color, label) {
+    if (t < T0 || t > T1) return;
+    const x = PADl + (t - T0) / (T1 - T0) * pw;
+    ctx.save();
+    ctx.strokeStyle = color; ctx.lineWidth = 1.3; ctx.setLineDash([5, 4]);
+    ctx.beginPath(); ctx.moveTo(x, PADt); ctx.lineTo(x, PADt + ph); ctx.stroke();
+    ctx.setLineDash([]);
+    if (label) {
+        ctx.fillStyle = color; ctx.font = 'bold 10px monospace'; ctx.textAlign = 'left';
+        ctx.fillText(label, x + 3, PADt + 14);
+    }
     ctx.restore();
 }
 
-// ── 滑块绑定 ──
-const bindings = [
+// ================================================================
+// 画布 1：原始脉冲
+// ================================================================
+const cv1  = document.getElementById('cv1');
+const ctx1 = cv1.getContext('2d');
+
+function drawPulse(sigs, p) {
+    const W = cv1.width, H = cv1.height;
+    ctx1.clearRect(0, 0, W, H);
+
+    const T0 = 0, T1 = sigs.ts[sigs.ts.length - 1];
+    const yRange = Math.max(Math.abs(p.amp) * 1.3, 0.15);
+    const { mx, my, y0, pw, ph } = axes(ctx1, W, H, T0, T1, -yRange, yRange);
+
+    // t_start / t_end 标记
+    vmark(ctx1, p.t_s, T0, T1, PAD.l, PAD.t, pw, ph,
+          '#f59e0b', `t_s = ${p.t_s.toFixed(1)} ns`);
+    vmark(ctx1, p.t_e, T0, T1, PAD.l, PAD.t, pw, ph,
+          '#f87171', `t_e = ${p.t_e.toFixed(1)} ns`);
+
+    // 极值水平线
+    const yExt = p.amp >= 0 ? Math.max(...sigs.ys) : Math.min(...sigs.ys);
+    {
+        const ya  = my(yExt);
+        const off = p.amp >= 0 ? -7 : 15;
+        ctx1.save();
+        ctx1.strokeStyle = '#34d39966'; ctx1.lineWidth = 1.2; ctx1.setLineDash([4, 6]);
+        ctx1.beginPath(); ctx1.moveTo(PAD.l, ya); ctx1.lineTo(PAD.l + pw, ya); ctx1.stroke();
+        ctx1.setLineDash([]);
+        ctx1.fillStyle = '#34d399'; ctx1.font = '11px monospace'; ctx1.textAlign = 'left';
+        ctx1.fillText(`peak = ${yExt.toFixed(3)}   (amp = ${p.amp.toFixed(2)})`,
+                      PAD.l + 6, ya + off);
+        ctx1.restore();
+    }
+
+    // 渐变填充
+    const gradEnd = p.amp >= 0 ? PAD.t : PAD.t + ph;
+    const grad = ctx1.createLinearGradient(0, y0, 0, gradEnd);
+    grad.addColorStop(0,   'rgba(56,189,248,0.00)');
+    grad.addColorStop(0.4, 'rgba(56,189,248,0.18)');
+    grad.addColorStop(1,   'rgba(56,189,248,0.28)');
+    ctx1.beginPath();
+    ctx1.moveTo(mx(sigs.ts[0]), y0);
+    sigs.ts.forEach((t, i) => ctx1.lineTo(mx(t), my(sigs.ys[i])));
+    ctx1.lineTo(mx(sigs.ts[sigs.ts.length - 1]), y0);
+    ctx1.closePath(); ctx1.fillStyle = grad; ctx1.fill();
+
+    // 主曲线
+    curve(ctx1, sigs.ts, sigs.ys, mx, my, '#38bdf8', 2.5);
+}
+
+// ================================================================
+// 画布 2：畸变后波形
+// ================================================================
+const cv2  = document.getElementById('cv2');
+const ctx2 = cv2.getContext('2d');
+
+function drawDistorted(sigs, p) {
+    const W = cv2.width, H = cv2.height;
+    ctx2.clearRect(0, 0, W, H);
+
+    const T0  = 0, T1 = sigs.ts[sigs.ts.length - 1];
+    const all = [...sigs.ys, ...sigs.ys_lpf, ...sigs.ys_hp];
+    const yPk = Math.max(Math.abs(Math.max(...all)), Math.abs(Math.min(...all)), 0.05);
+    const yRange = yPk * 1.35;
+
+    const { mx, my, pw, ph } = axes(ctx2, W, H, T0, T1, -yRange, yRange);
+
+    // 标记线（细，半透明）
+    vmark(ctx2, p.t_s, T0, T1, PAD.l, PAD.t, pw, ph, '#f59e0b66', '');
+    vmark(ctx2, p.t_e, T0, T1, PAD.l, PAD.t, pw, ph, '#f8717166', '');
+
+    // 三条曲线
+    curve(ctx2, sigs.ts, sigs.ys,     mx, my, '#38bdf840', 1.5, [3, 4]); // 原始（暗虚线）
+    curve(ctx2, sigs.ts, sigs.ys_lpf, mx, my, '#fb923c',   2.2);          // LPF 后
+    curve(ctx2, sigs.ts, sigs.ys_hp,  mx, my, '#34d399',   2.5);          // LPF + HP 后
+
+    // 右上角参数标注
+    ctx2.fillStyle = '#fb923c'; ctx2.font = '11px monospace'; ctx2.textAlign = 'right';
+    ctx2.fillText(`LPF: BW = ${p.bw} MHz,  σ_t = ${sigs.sigma_t.toFixed(3)} ns`,
+                  PAD.l + pw - 6, PAD.t + 16);
+    ctx2.fillStyle = '#34d399';
+    ctx2.fillText(`HP:  τ = ${p.tau} ns,  f_c = ${(1/(2*Math.PI*p.tau/1000)).toFixed(3)} MHz`,
+                  PAD.l + pw - 6, PAD.t + 32);
+}
+
+// ================================================================
+// 更新派生量显示
+// ================================================================
+function updateDerived(p, sigs) {
+    document.getElementById('v_ts').textContent = p.t_s.toFixed(2) + ' ns';
+    document.getElementById('v_st').textContent = sigs.sigma_t.toFixed(3) + ' ns';
+    const fc = 1.0 / (2 * Math.PI * p.tau / 1000);
+    document.getElementById('v_fc').textContent = fc.toFixed(3) + ' MHz';
+}
+
+// ================================================================
+// 统一重绘入口
+// ================================================================
+function redraw() {
+    const p    = getP();
+    const sigs = buildSignals(p);
+    updateDerived(p, sigs);
+    drawPulse(sigs, p);
+    drawDistorted(sigs, p);
+}
+
+// ================================================================
+// 滑块绑定
+// ================================================================
+[
     ['s_amp', 'v_amp', 2],
     ['s_sr',  'v_sr',  2],
     ['s_sf',  'v_sf',  2],
-    ['s_ts',  'v_ts',  2],
-    ['s_w',   'v_w',   2],
-];
-bindings.forEach(([sid, vid, dec]) => {
+    ['s_ns',  'v_ns',  1],
+    ['s_bw',  'v_bw',  0],
+    ['s_tau', 'v_tau', 0],
+].forEach(([sid, vid, dec]) => {
     const sl = document.getElementById(sid);
     const vl = document.getElementById(vid);
     sl.addEventListener('input', () => {
         vl.textContent = (+sl.value).toFixed(dec);
-        draw();
+        redraw();
     });
 });
 
-draw();
+function resetDefaults() {
+  const defs = {s_amp:'1.0', s_sr:'2.0', s_sf:'2.0', s_ns:'3.0', s_bw:'250', s_tau:'500'};
+  for (const [id, val] of Object.entries(defs))
+    document.getElementById(id).value = val;
+  redraw();
+}
+
+redraw();
 </script>
 </body>
 </html>
